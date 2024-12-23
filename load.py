@@ -33,35 +33,76 @@ def load_settings():
             return json.load(f)
     return {}
 
+def is_executable(path):
+    """Kontrola, zda je cesta spustitelný soubor."""
+    return os.path.isfile(path) and os.access(path, os.X_OK)
+
 def prompt_for_settings(settings):
     """Zajištění, že všechny hodnoty v nastavení budou vyplněny prostřednictvím uživatelského vstupu."""
-    required_keys = {
-        "deploy_react": "Do you want to deploy React? (yes/no): ",
-        "deploy_laravel": "Do you want to deploy Laravel? (yes/no): ",
-        "react_path": "Enter the path to your React project: ",
-        "npm_path": "Enter the path to npm: ",
-        "laravel_path": "Enter the path to your Laravel project: ",
-        "php_path": "Enter the path to PHP: ",
-        "server_host": "Enter the server host: ",
-        "server_port": "Enter the server port: ",
-        "server_user": "Enter the server username: ",
-        "server_pass": "Enter the server password: ",
-        "server_url": "Enter the server URL: ",
-        "remote_react_path": "Enter the remote path for React deployment: ",
-        "psftp_path": "Enter the path to PSFTP: ",
-        "laravel_env_path": "Enter the path to the Laravel .env file: ",
-        "remote_laravel_path": "Enter the remote path for Laravel deployment: ",
-        "winscp_path": "Enter the path to WinSCP: ",
+    # Klíče a dotazy podle modulů
+    general_keys = {
+        "server_host": "Enter the server host (novakon25.mp.spse-net.cz): ",
+        "server_port": "Enter the server port (1234): ",
+        "server_user": "Enter the server username (novakon25): ",
+        "server_pass": "Enter the server password (password): ",
+        "server_url": "Enter the server URL (https://novakon25.mp.spse-net.cz/): "
     }
 
-    for key, prompt in required_keys.items():
-        if key not in settings or not settings[key]:  # Pokud klíč chybí nebo má prázdnou hodnotu
-            if "deploy_" in key:  # Pro hodnoty ano/ne
-                settings[key] = input(prompt).strip().lower() == "yes"
-            elif "server_port" in key:  # Port jako číslo
-                settings[key] = int(input(prompt).strip())
-            else:  # Pro ostatní hodnoty
+    react_keys = {
+        "react_path": "Enter the path to your React project (absolute): ",
+        "npm_path": "Enter the path to npm (for npm react build command): ",
+        "remote_react_path": "Enter the remote path for React deployment (/web): "
+    }
+
+    laravel_keys = {
+        "laravel_path": "Enter the path to your Laravel project (absolute): ",
+        "php_path": "Enter the path to PHP (for php artisan optimize): ",
+        "laravel_env_path": "Enter the path to the Laravel .env file (absolute): ",
+        "remote_laravel_path": "Enter the remote path for Laravel deployment (/web): "
+    }
+
+    winscp_keys = {
+        "winscp_path": "Enter the path to WinSCP (absolute from project folder): "
+    }
+
+    # Zeptejte se na obecné otázky
+    for key, prompt in general_keys.items():
+        if key not in settings or not settings[key]:
+            settings[key] = input(prompt).strip()
+            if key == "server_port":
+                settings[key] = int(settings[key])
+
+    # Zeptejte se, zda nasadit React nebo Laravel
+    if "deploy_react" not in settings:
+        settings["deploy_react"] = input("Do you want to deploy React? (yes/no): ").strip().lower() == "yes"
+
+    if "deploy_laravel" not in settings:
+        settings["deploy_laravel"] = input("Do you want to deploy Laravel? (yes/no): ").strip().lower() == "yes"
+
+    # Pokud je nasazení Reactu povoleno, dotazy na React
+    if settings["deploy_react"]:
+        for key, prompt in react_keys.items():
+            if key == "npm_path":
+                # Kontrola existence npm pouze pokud není nastaveno
+                if not settings.get(key) or not is_executable(settings[key]):
+                    settings[key] = input(prompt).strip()
+            elif key not in settings or not settings[key]:
                 settings[key] = input(prompt).strip()
+
+    # Pokud je nasazení Laravelu povoleno, dotazy na Laravel
+    if settings["deploy_laravel"]:
+        for key, prompt in laravel_keys.items():
+            if key == "php_path":
+                # Kontrola existence php pouze pokud není nastaveno
+                if not settings.get(key) or not is_executable(settings[key]):
+                    settings[key] = input(prompt).strip()
+            elif key not in settings or not settings[key]:
+                settings[key] = input(prompt).strip()
+
+    # Dotazy na WinSCP (je potřeba pro obě nasazení)
+    for key, prompt in winscp_keys.items():
+        if not settings.get(key) or not is_executable(settings[key]):
+            settings[key] = input(prompt).strip()
 
     return settings
 
