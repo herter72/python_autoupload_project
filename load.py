@@ -188,8 +188,15 @@ def deploy_laravel(settings):
             folders.append(os.path.join(root, folder))
         # Přidáme samostatné soubory z root Laravel projektu
         if root == laravel_path:
-            standalone_files.extend([os.path.join(root, file) for file in files])
+            standalone_files.extend([
+                os.path.join(root, file) for file in files if not file.startswith(".env")
+            ])
         break  # Zpracujeme pouze první úroveň
+
+    # Přidání .env.production jako .env
+    env_production_path = os.path.join(laravel_path, ".env.production")
+    if os.path.exists(env_production_path):
+        standalone_files.append(env_production_path)
 
     threads = []
     progress_bar = tqdm(total=len(folders) + (1 if standalone_files else 0), desc="Laravel Deployment", unit="task")
@@ -232,6 +239,7 @@ def deploy_laravel(settings):
                 f'lcd "{laravel_path}"',
                 f'cd {remote_laravel_path}',
                 "synchronize remote .",
+                f'put "{env_production_path}" {remote_laravel_path}/.env',
                 "exit",
             ]
         )
@@ -248,6 +256,7 @@ def deploy_laravel(settings):
 
     progress_bar.close()
     print("✅ Laravel deployment completed with threads.")
+
 
 
 def main():
